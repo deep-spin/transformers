@@ -22,6 +22,7 @@ from functools import reduce
 from operator import mul
 
 import numpy as np
+import entmax
 import torch
 from torch import nn
 from torch.autograd.function import Function
@@ -52,6 +53,9 @@ ACT2FN = {
     "gelu_new": gelu_new,
     "gelu_fast": gelu_fast,
     "mish": mish,
+    "softmax": torch.nn.functional.softmax,
+    "entmax": entmax.entmax15,
+    "sparsemax": entmax.sparsemax
 }
 
 
@@ -291,6 +295,7 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
         self.hash_seed = config.hash_seed
         self.is_decoder = config.is_decoder
         self.max_position_embeddings = config.max_position_embeddings
+        self.attn_fn = ACT2FN[config.lsh_attn_fn]
 
         self.dropout = config.lsh_attention_probs_dropout_prob
 
@@ -413,6 +418,7 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
                 logits, num_hashes, sequence_length, self.num_attention_heads, self.attention_head_size,
             ).unsqueeze(-1)
 
+            # essentially a softmax over the logsumexps of each hashing round
             probs_vectors = torch.exp(logits - torch.logsumexp(logits, dim=2, keepdim=True))
             out_vectors = torch.sum(out_vectors * probs_vectors, dim=2)
             # free memory
@@ -597,8 +603,9 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
         del self_mask
 
         logits = torch.logsumexp(query_key_dots, dim=-1, keepdim=True)
-        # dots shape is `[batch_size, num_attn_heads, num_hashes * seq_len // chunk_length, chunk_length, chunk_length * (1 + num_chunks_before + num_chunks_after)]`
-        attention_probs = torch.exp(query_key_dots - logits)
+        # # dots shape is `[batch_size, num_attn_heads, num_hashes * seq_len // chunk_length, chunk_length, chunk_length * (1 + num_chunks_before + num_chunks_after)]`
+        # attention_probs = torch.exp(query_key_dots - logits)
+        attention_probs = self.attn_fn(query_key_dots)
 
         # free memory
         del query_key_dots
@@ -744,6 +751,7 @@ class LocalSelfAttention(nn.Module, EfficientAttentionMixin):
         self.num_chunks_after = config.local_num_chunks_after
         self.is_decoder = config.is_decoder
         self.pad_token_id = config.pad_token_id
+        self.attn_fn = ACT2FN[config.local_attn_fn]
 
         self.attention_head_size = config.attention_head_size
         self.all_head_size = self.num_attention_heads * self.attention_head_size
@@ -844,11 +852,7 @@ class LocalSelfAttention(nn.Module, EfficientAttentionMixin):
         del mask
 
         # softmax
-        logits = torch.logsumexp(query_key_dots, dim=-1, keepdim=True)
-        attention_probs = torch.exp(query_key_dots - logits)
-
-        # free memory
-        del logits
+        attention_probs = self.attn_fn(query_key_dots)
 
         # dropout
         attention_probs = nn.functional.dropout(attention_probs, p=self.dropout, training=self.training)

@@ -89,6 +89,9 @@ class ReformerConfig(PretrainedConfig):
                 When using the Reformer for causal language modeling, `is_decoder` is set to `True`.
             layer_norm_eps (:obj:`float`, optional, defaults to 1e-12):
                 The epsilon used by the layer normalization layers.
+            local_attn_fn (:obj:`str`, optional, defaults to "softmax"):
+                Attention function used in LocalSelfAttention.
+                It must be one of "softmax", "entmax" or "sparsemax".
             local_chunk_length (:obj:`int`, optional, defaults to 64):
                 Length of chunk which attends to itself in LocalSelfAttention. Chunking reduces memory complexity from sequence length x sequence length (self attention) to chunk length x chunk length x sequence length / chunk length (chunked self attention).
             local_num_chunks_before (:obj:`int`, optional, defaults to 1):
@@ -97,6 +100,9 @@ class ReformerConfig(PretrainedConfig):
                 Number of following neighbouring chunks to attend to in LocalSelfAttention layer in addition to itself.
             local_attention_probs_dropout_prob (:obj:`float`, optional, defaults to 0.1):
                 The dropout ratio for the attention probabilities in LocalSelfAttention.
+            lsh_attn_fn (:obj:`str`, optional, defaults to "softmax"):
+                Attention function used in LSHSelfAttention.
+                It must be one of "softmax", "entmax" or "sparsemax".
             lsh_chunk_length (:obj:`int`, optional, defaults to 64):
                 Length of chunk which attends to itself in LSHSelfAttention. Chunking reduces memory complexity from sequence length x sequence length (self attention) to chunk length x chunk length x sequence length / chunk length (chunked self attention).
             lsh_num_chunks_before (:obj:`int`, optional, defaults to 1):
@@ -162,10 +168,12 @@ class ReformerConfig(PretrainedConfig):
         initializer_range=0.02,
         is_decoder=False,
         layer_norm_eps=1e-12,
+        local_attn_fn="softmax",
         local_num_chunks_before=1,
         local_num_chunks_after=0,
         local_attention_probs_dropout_prob=0.05,
         local_attn_chunk_length=64,
+        lsh_attn_fn="softmax",
         lsh_attn_chunk_length=64,
         lsh_attention_probs_dropout_prob=0.0,
         lsh_num_chunks_before=1,
@@ -189,6 +197,8 @@ class ReformerConfig(PretrainedConfig):
         self.num_hidden_layers = len(attn_layers)
         self.num_buckets = tuple(num_buckets) if isinstance(num_buckets, list) else num_buckets
         self.lsh_attn_chunk_length = lsh_attn_chunk_length
+        self.local_attn_fn = local_attn_fn
+        self.lsh_attn_fn = lsh_attn_fn
         self.local_attn_chunk_length = local_attn_chunk_length
         self.lsh_num_chunks_after = lsh_num_chunks_after
         self.lsh_num_chunks_before = lsh_num_chunks_before

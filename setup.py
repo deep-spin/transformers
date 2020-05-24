@@ -123,6 +123,8 @@ setup(
         "sentencepiece",
         # for XLM
         "sacremoses",
+        # sparse activations
+        "entmax"
     ],
     extras_require=extras,
     scripts=["transformers-cli"],
