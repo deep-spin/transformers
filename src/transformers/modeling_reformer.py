@@ -543,8 +543,14 @@ class LSHSelfAttention(nn.Module, EfficientAttentionMixin):
 
         # factorize `num_buckets` if `num_buckets` becomes too large
         num_buckets_limit = max(int((self.max_position_embeddings // self.chunk_length) ** (0.5)), self.chunk_length,)
+        if num_buckets_limit % 2 != 0:
+            num_buckets_limit += 1
+
         if num_buckets > 2 * num_buckets_limit:
             num_buckets = [num_buckets_limit, num_buckets // num_buckets_limit + 1]
+
+            if num_buckets[1] % 2 != 0:
+                num_buckets[1] += 1
 
         logger.warning("config.num_buckets is not set. Setting config.num_buckets to {}...".format(num_buckets))
         self.num_buckets = num_buckets
