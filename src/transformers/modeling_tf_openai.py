@@ -29,6 +29,7 @@ from .modeling_tf_utils import (
     TFSequenceSummary,
     TFSharedEmbeddings,
     get_initializer,
+    keras_serializable,
     shape_list,
 )
 from .tokenization_utils import BatchEncoding
@@ -36,7 +37,10 @@ from .tokenization_utils import BatchEncoding
 
 logger = logging.getLogger(__name__)
 
-TF_OPENAI_GPT_PRETRAINED_MODEL_ARCHIVE_MAP = {"openai-gpt": "https://cdn.huggingface.co/openai-gpt-tf_model.h5"}
+TF_OPENAI_GPT_PRETRAINED_MODEL_ARCHIVE_LIST = [
+    "openai-gpt",
+    # See all OpenAI GPT models at https://huggingface.co/models?filter=openai-gpt
+]
 
 
 def gelu(x):
@@ -196,7 +200,10 @@ class TFBlock(tf.keras.layers.Layer):
         return outputs  # x, (attentions)
 
 
+@keras_serializable
 class TFOpenAIGPTMainLayer(tf.keras.layers.Layer):
+    config_class = OpenAIGPTConfig
+
     def __init__(self, config, *inputs, **kwargs):
         super().__init__(*inputs, **kwargs)
         self.output_hidden_states = config.output_hidden_states
@@ -349,7 +356,6 @@ class TFOpenAIGPTPreTrainedModel(TFPreTrainedModel):
     """
 
     config_class = OpenAIGPTConfig
-    pretrained_model_archive_map = TF_OPENAI_GPT_PRETRAINED_MODEL_ARCHIVE_MAP
     base_model_prefix = "transformer"
 
 

@@ -240,6 +240,7 @@ class Trainer:
             batch_size=self.args.train_batch_size,
             sampler=train_sampler,
             collate_fn=self.data_collator.collate_batch,
+            drop_last=self.args.dataloader_drop_last,
         )
 
         return data_loader
@@ -264,6 +265,7 @@ class Trainer:
             sampler=sampler,
             batch_size=self.args.eval_batch_size,
             collate_fn=self.data_collator.collate_batch,
+            drop_last=self.args.dataloader_drop_last,
         )
 
         return data_loader
@@ -553,6 +555,7 @@ class Trainer:
         if self.tb_writer:
             for k, v in logs.items():
                 self.tb_writer.add_scalar(k, v, self.global_step)
+            self.tb_writer.flush()
         if is_wandb_available():
             wandb.log(logs, step=self.global_step)
         output = json.dumps({**logs, **{"step": self.global_step}})
