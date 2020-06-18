@@ -235,6 +235,7 @@ class TFElectraMainLayer(TFElectraPreTrainedModel):
         position_ids=None,
         head_mask=None,
         inputs_embeds=None,
+        output_attentions=None,
         training=False,
     ):
         if isinstance(inputs, (tuple, list)):
@@ -244,7 +245,8 @@ class TFElectraMainLayer(TFElectraPreTrainedModel):
             position_ids = inputs[3] if len(inputs) > 3 else position_ids
             head_mask = inputs[4] if len(inputs) > 4 else head_mask
             inputs_embeds = inputs[5] if len(inputs) > 5 else inputs_embeds
-            assert len(inputs) <= 6, "Too many inputs."
+            output_attentions = inputs[6] if len(inputs) > 6 else output_attentions
+            assert len(inputs) <= 7, "Too many inputs."
         elif isinstance(inputs, (dict, BatchEncoding)):
             input_ids = inputs.get("input_ids")
             attention_mask = inputs.get("attention_mask", attention_mask)
@@ -252,9 +254,12 @@ class TFElectraMainLayer(TFElectraPreTrainedModel):
             position_ids = inputs.get("position_ids", position_ids)
             head_mask = inputs.get("head_mask", head_mask)
             inputs_embeds = inputs.get("inputs_embeds", inputs_embeds)
-            assert len(inputs) <= 6, "Too many inputs."
+            output_attentions = inputs.get("output_attentions", output_attentions)
+            assert len(inputs) <= 7, "Too many inputs."
         else:
             input_ids = inputs
+
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
 
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
@@ -278,7 +283,9 @@ class TFElectraMainLayer(TFElectraPreTrainedModel):
         if hasattr(self, "embeddings_project"):
             hidden_states = self.embeddings_project(hidden_states, training=training)
 
-        hidden_states = self.encoder([hidden_states, extended_attention_mask, head_mask], training=training)
+        hidden_states = self.encoder(
+            [hidden_states, extended_attention_mask, head_mask, output_attentions], training=training
+        )
 
         return hidden_states
 
@@ -329,6 +336,11 @@ ELECTRA_INPUTS_DOCSTRING = r"""
             ``1`` for tokens that are NOT MASKED, ``0`` for MASKED tokens.
 
             `What are attention masks? <../glossary.html#attention-mask>`__
+        position_ids (:obj:`Numpy array` or :obj:`tf.Tensor` of shape :obj:`{0}`, `optional`, defaults to :obj:`None`):
+            Indices of positions of each input sequence tokens in the position embeddings.
+            Selected in the range ``[0, config.max_position_embeddings - 1]``.
+
+            `What are position IDs? <../glossary.html#position-ids>`__
         head_mask (:obj:`Numpy array` or :obj:`tf.Tensor` of shape :obj:`(num_heads,)` or :obj:`(num_layers, num_heads)`, `optional`, defaults to :obj:`None`):
             Mask to nullify selected heads of the self-attention modules.
             Mask values selected in ``[0, 1]``:
@@ -341,6 +353,8 @@ ELECTRA_INPUTS_DOCSTRING = r"""
             Whether to activate dropout modules (if set to :obj:`True`) during training or to de-activate them
             (if set to :obj:`False`) for evaluation.
 
+        output_attentions (:obj:`bool`, `optional`, defaults to :obj:`None`):
+            If set to ``True``, the attentions tensors of all attention layers are returned. See ``attentions`` under returned tensors for more detail.
 """
 
 
@@ -372,7 +386,7 @@ class TFElectraModel(TFElectraPreTrainedModel):
             of shape :obj:`(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        attentions (:obj:`tuple(tf.Tensor)`, `optional`, returned when ``config.output_attentions=True``):
+        attentions (:obj:`tuple(tf.Tensor)`, `optional`, returned when ``output_attentions=True`` is passed or ``config.output_attentions=True``):
             tuple of :obj:`tf.Tensor` (one for each layer) of shape
             :obj:`(batch_size, num_heads, sequence_length, sequence_length)`:
 
@@ -394,12 +408,11 @@ class TFElectraModel(TFElectraPreTrainedModel):
 
 
 @add_start_docstrings(
-    """
-Electra model with a binary classification head on top as used during pre-training for identifying generated
-tokens.
+    """Electra model with a binary classification head on top as used during pre-training for identifying generated
+    tokens.
 
-Even though both the discriminator and generator may be loaded into this model, the discriminator is
-the only model of the two to have the correct classification head to be used for this model.""",
+    Even though both the discriminator and generator may be loaded into this model, the discriminator is
+    the only model of the two to have the correct classification head to be used for this model.""",
     ELECTRA_START_DOCSTRING,
 )
 class TFElectraForPreTraining(TFElectraPreTrainedModel):
@@ -421,6 +434,7 @@ class TFElectraForPreTraining(TFElectraPreTrainedModel):
         position_ids=None,
         head_mask=None,
         inputs_embeds=None,
+        output_attentions=None,
         training=False,
     ):
         r"""
@@ -433,7 +447,7 @@ class TFElectraForPreTraining(TFElectraPreTrainedModel):
             of shape :obj:`(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        attentions (:obj:`tuple(tf.Tensor)`, `optional`, returned when ``config.output_attentions=True``):
+        attentions (:obj:`tuple(tf.Tensor)`, `optional`, returned when ``output_attentions=True`` is passed or ``config.output_attentions=True``):
             tuple of :obj:`tf.Tensor` (one for each layer) of shape
             :obj:`(batch_size, num_heads, sequence_length, sequence_length)`:
 
@@ -452,7 +466,14 @@ class TFElectraForPreTraining(TFElectraPreTrainedModel):
         """
 
         discriminator_hidden_states = self.electra(
-            input_ids, attention_mask, token_type_ids, position_ids, head_mask, inputs_embeds, training=training
+            input_ids,
+            attention_mask,
+            token_type_ids,
+            position_ids,
+            head_mask,
+            inputs_embeds,
+            output_attentions,
+            training=training,
         )
         discriminator_sequence_output = discriminator_hidden_states[0]
         logits = self.discriminator_predictions(discriminator_sequence_output)
@@ -479,11 +500,10 @@ class TFElectraMaskedLMHead(tf.keras.layers.Layer):
 
 
 @add_start_docstrings(
-    """
-Electra model with a language modeling head on top.
+    """Electra model with a language modeling head on top.
 
-Even though both the discriminator and generator may be loaded into this model, the generator is
-the only model of the two to have been trained for the masked language modeling task.""",
+    Even though both the discriminator and generator may be loaded into this model, the generator is
+    the only model of the two to have been trained for the masked language modeling task.""",
     ELECTRA_START_DOCSTRING,
 )
 class TFElectraForMaskedLM(TFElectraPreTrainedModel):
@@ -514,6 +534,7 @@ class TFElectraForMaskedLM(TFElectraPreTrainedModel):
         position_ids=None,
         head_mask=None,
         inputs_embeds=None,
+        output_attentions=None,
         training=False,
     ):
         r"""
@@ -526,7 +547,7 @@ class TFElectraForMaskedLM(TFElectraPreTrainedModel):
             of shape :obj:`(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        attentions (:obj:`tuple(tf.Tensor)`, `optional`, returned when ``config.output_attentions=True``):
+        attentions (:obj:`tuple(tf.Tensor)`, `optional`, returned when ``output_attentions=True`` is passed or ``config.output_attentions=True``):
             tuple of :obj:`tf.Tensor` (one for each layer) of shape
             :obj:`(batch_size, num_heads, sequence_length, sequence_length)`:
 
@@ -546,7 +567,14 @@ class TFElectraForMaskedLM(TFElectraPreTrainedModel):
         """
 
         generator_hidden_states = self.electra(
-            input_ids, attention_mask, token_type_ids, position_ids, head_mask, inputs_embeds, training=training
+            input_ids,
+            attention_mask,
+            token_type_ids,
+            position_ids,
+            head_mask,
+            inputs_embeds,
+            output_attentions=output_attentions,
+            training=training,
         )
         generator_sequence_output = generator_hidden_states[0]
         prediction_scores = self.generator_predictions(generator_sequence_output, training=training)
@@ -558,10 +586,9 @@ class TFElectraForMaskedLM(TFElectraPreTrainedModel):
 
 
 @add_start_docstrings(
-    """
-Electra model with a token classification head on top.
+    """Electra model with a token classification head on top.
 
-Both the discriminator and generator may be loaded into this model.""",
+    Both the discriminator and generator may be loaded into this model.""",
     ELECTRA_START_DOCSTRING,
 )
 class TFElectraForTokenClassification(TFElectraPreTrainedModel, TFTokenClassificationLoss):
@@ -584,6 +611,7 @@ class TFElectraForTokenClassification(TFElectraPreTrainedModel, TFTokenClassific
         head_mask=None,
         inputs_embeds=None,
         labels=None,
+        output_attentions=None,
         training=False,
     ):
         r"""
@@ -600,7 +628,7 @@ class TFElectraForTokenClassification(TFElectraPreTrainedModel, TFTokenClassific
             of shape :obj:`(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        attentions (:obj:`tuple(tf.Tensor)`, `optional`, returned when ``config.output_attentions=True``):
+        attentions (:obj:`tuple(tf.Tensor)`, `optional`, returned when ``output_attentions=True`` is passed or ``config.output_attentions=True``):
             tuple of :obj:`tf.Tensor` (one for each layer) of shape
             :obj:`(batch_size, num_heads, sequence_length, sequence_length)`:
 
@@ -621,7 +649,14 @@ class TFElectraForTokenClassification(TFElectraPreTrainedModel, TFTokenClassific
         """
 
         discriminator_hidden_states = self.electra(
-            input_ids, attention_mask, token_type_ids, position_ids, head_mask, inputs_embeds, training=training
+            input_ids,
+            attention_mask,
+            token_type_ids,
+            position_ids,
+            head_mask,
+            inputs_embeds,
+            output_attentions,
+            training=training,
         )
         discriminator_sequence_output = discriminator_hidden_states[0]
         discriminator_sequence_output = self.dropout(discriminator_sequence_output)
@@ -665,6 +700,7 @@ class TFElectraForQuestionAnswering(TFElectraPreTrainedModel, TFQuestionAnswerin
         cls_index=None,
         p_mask=None,
         is_impossible=None,
+        output_attentions=None,
         training=False,
     ):
         r"""
@@ -688,7 +724,7 @@ class TFElectraForQuestionAnswering(TFElectraPreTrainedModel, TFQuestionAnswerin
             of shape :obj:`(batch_size, sequence_length, hidden_size)`.
 
             Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        attentions (:obj:`tuple(tf.Tensor)`, `optional`, returned when ``config.output_attentions=True``):
+        attentions (:obj:`tuple(tf.Tensor)`, `optional`, returned when ``output_attentions=True`` is passed or ``config.output_attentions=True``):
             tuple of :obj:`tf.Tensor` (one for each layer) of shape
             :obj:`(batch_size, num_heads, sequence_length, sequence_length)`:
 
@@ -711,7 +747,14 @@ class TFElectraForQuestionAnswering(TFElectraPreTrainedModel, TFQuestionAnswerin
 
         """
         discriminator_hidden_states = self.electra(
-            input_ids, attention_mask, token_type_ids, position_ids, head_mask, inputs_embeds, training=training
+            input_ids,
+            attention_mask,
+            token_type_ids,
+            position_ids,
+            head_mask,
+            inputs_embeds,
+            output_attentions,
+            training=training,
         )
         discriminator_sequence_output = discriminator_hidden_states[0]
 

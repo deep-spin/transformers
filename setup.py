@@ -84,7 +84,7 @@ extras["torch"] = ["torch"]
 extras["serving"] = ["pydantic", "uvicorn", "fastapi", "starlette"]
 extras["all"] = extras["serving"] + ["tensorflow", "torch"]
 
-extras["testing"] = ["pytest", "pytest-xdist", "timeout-decorator"]
+extras["testing"] = ["pytest", "pytest-xdist", "timeout-decorator", "psutil"]
 extras["docs"] = ["recommonmark", "sphinx", "sphinx-markdown-tables", "sphinx-rtd-theme"]
 extras["quality"] = [
     "black",
@@ -108,7 +108,7 @@ setup(
     packages=find_packages("src"),
     install_requires=[
         "numpy",
-        "tokenizers == 0.7.0",
+        "tokenizers == 0.8.0-rc1",
         # dataclasses for Python versions that don't have it
         "dataclasses;python_version<'3.7'",
         # utilities from PyPA to e.g. compare versions

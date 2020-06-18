@@ -294,7 +294,6 @@ class TFPreTrainedModel(tf.keras.Model, TFModelUtilsMixin):
 
         Parameters:
             pretrained_model_name_or_path: either:
-
                 - a string with the `shortcut name` of a pre-trained model to load from cache or download, e.g.: ``bert-base-uncased``.
                 - a string with the `identifier name` of a pre-trained model that was user-uploaded to our S3, e.g.: ``dbmdz/bert-base-german-cased``.
                 - a path to a `directory` containing model weights saved using :func:`~transformers.PreTrainedModel.save_pretrained`, e.g.: ``./my_model_directory/``.
@@ -306,11 +305,11 @@ class TFPreTrainedModel(tf.keras.Model, TFModelUtilsMixin):
             config: (`optional`) one of:
                     - an instance of a class derived from :class:`~transformers.PretrainedConfig`, or
                     - a string valid as input to :func:`~transformers.PretrainedConfig.from_pretrained()`
-                Configuration for the model to use instead of an automatically loaded configuation. Configuration can be automatically loaded when:
 
-                - the model is a model provided by the library (loaded with the ``shortcut-name`` string of a pretrained model), or
-                - the model was saved using :func:`~transformers.PreTrainedModel.save_pretrained` and is reloaded by suppling the save directory.
-                - the model is loaded by suppling a local directory as ``pretrained_model_name_or_path`` and a configuration JSON file named `config.json` is found in the directory.
+                Configuration for the model to use instead of an automatically loaded configuation. Configuration can be automatically loaded when:
+                    - the model is a model provided by the library (loaded with the ``shortcut-name`` string of a pretrained model), or
+                    - the model was saved using :func:`~transformers.PreTrainedModel.save_pretrained` and is reloaded by suppling the save directory.
+                    - the model is loaded by suppling a local directory as ``pretrained_model_name_or_path`` and a configuration JSON file named `config.json` is found in the directory.
 
             from_pt: (`optional`) boolean, default False:
                 Load the model weights from a PyTorch state_dict save file (see docstring of pretrained_model_name_or_path argument).
@@ -357,6 +356,7 @@ class TFPreTrainedModel(tf.keras.Model, TFModelUtilsMixin):
         resume_download = kwargs.pop("resume_download", False)
         proxies = kwargs.pop("proxies", None)
         output_loading_info = kwargs.pop("output_loading_info", False)
+        local_files_only = kwargs.pop("local_files_only", False)
         use_cdn = kwargs.pop("use_cdn", True)
 
         # Load config if we don't provide a configuration
@@ -369,6 +369,8 @@ class TFPreTrainedModel(tf.keras.Model, TFModelUtilsMixin):
                 return_unused_kwargs=True,
                 force_download=force_download,
                 resume_download=resume_download,
+                proxies=proxies,
+                local_files_only=local_files_only,
                 **kwargs,
             )
         else:
@@ -406,8 +408,9 @@ class TFPreTrainedModel(tf.keras.Model, TFModelUtilsMixin):
                     archive_file,
                     cache_dir=cache_dir,
                     force_download=force_download,
-                    resume_download=resume_download,
                     proxies=proxies,
+                    resume_download=resume_download,
+                    local_files_only=local_files_only,
                 )
                 if resolved_archive_file is None:
                     raise EnvironmentError
@@ -1216,9 +1219,9 @@ class TFPreTrainedModel(tf.keras.Model, TFModelUtilsMixin):
                     if len(next_sent_beam) == num_beams:
                         break
 
-                # Check if were done so that we can save a pad step if all(done)
+                # Check if we are done so that we can save a pad step if all(done)
                 done[batch_idx] = done[batch_idx] or generated_hyps[batch_idx].is_done(
-                    tf.reduce_max(next_scores[batch_idx]).numpy(), cur_len=cur_len
+                    tf.reduce_max(next_scores[batch_idx]).numpy(), cur_len
                 )
 
                 # update next beam content
@@ -1506,7 +1509,7 @@ class BeamHypotheses(object):
             else:
                 self.worst_score = min(score, self.worst_score)
 
-    def is_done(self, best_sum_logprobs, cur_len=None):
+    def is_done(self, best_sum_logprobs, cur_len):
         """
         If there are enough hypotheses and that none of the hypotheses being generated
         can become better than the worst one in the heap, then we are done with this sentence.
@@ -1517,8 +1520,6 @@ class BeamHypotheses(object):
         elif self.early_stopping:
             return True
         else:
-            if cur_len is None:
-                cur_len = self.max_length
             cur_score = best_sum_logprobs / cur_len ** self.length_penalty
             ret = self.worst_score >= cur_score
             return ret
@@ -1755,3 +1756,24 @@ def get_initializer(initializer_range=0.02):
         TruncatedNormal initializer with stddev = `initializer_range`.
     """
     return tf.keras.initializers.TruncatedNormal(stddev=initializer_range)
+
+
+def cast_bool_to_primitive(bool_variable, default_tensor_to_true=False):
+    """Function arguments can be inserted as boolean tensor
+        and bool variables to cope with keras serialization
+        we need to cast `output_attentions` to correct bool
+        if it is a tensor
+
+    Args:
+        default_tensor_to_true: bool, if tensor should default to True
+        in case tensor has no numpy attribute
+    """
+    # if bool variable is tensor and has numpy value
+    if tf.is_tensor(bool_variable):
+        if hasattr(bool_variable, "numpy"):
+            return bool(bool_variable.numpy())
+        elif default_tensor_to_true:
+            return True
+
+    # else variable is bool
+    return bool_variable
