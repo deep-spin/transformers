@@ -32,6 +32,7 @@ from .configuration_auto import (
     FlaubertConfig,
     GPT2Config,
     LongformerConfig,
+    MobileBertConfig,
     OpenAIGPTConfig,
     ReformerConfig,
     RetriBertConfig,
@@ -72,6 +73,7 @@ from .modeling_bert import (
 from .modeling_camembert import (
     CamembertForMaskedLM,
     CamembertForMultipleChoice,
+    CamembertForQuestionAnswering,
     CamembertForSequenceClassification,
     CamembertForTokenClassification,
     CamembertModel,
@@ -98,6 +100,7 @@ from .modeling_encoder_decoder import EncoderDecoderModel
 from .modeling_flaubert import (
     FlaubertForQuestionAnsweringSimple,
     FlaubertForSequenceClassification,
+    FlaubertForTokenClassification,
     FlaubertModel,
     FlaubertWithLMHeadModel,
 )
@@ -111,8 +114,22 @@ from .modeling_longformer import (
     LongformerModel,
 )
 from .modeling_marian import MarianMTModel
+from .modeling_mobilebert import (
+    MobileBertForMaskedLM,
+    MobileBertForMultipleChoice,
+    MobileBertForPreTraining,
+    MobileBertForQuestionAnswering,
+    MobileBertForSequenceClassification,
+    MobileBertForTokenClassification,
+    MobileBertModel,
+)
 from .modeling_openai import OpenAIGPTLMHeadModel, OpenAIGPTModel
-from .modeling_reformer import ReformerModel, ReformerModelWithLMHead
+from .modeling_reformer import (
+    ReformerForMaskedLM,
+    ReformerForQuestionAnswering,
+    ReformerModel,
+    ReformerModelWithLMHead,
+)
 from .modeling_retribert import RetriBertModel
 from .modeling_roberta import (
     RobertaForMaskedLM,
@@ -166,6 +183,7 @@ MODEL_MAPPING = OrderedDict(
         (BertConfig, BertModel),
         (OpenAIGPTConfig, OpenAIGPTModel),
         (GPT2Config, GPT2Model),
+        (MobileBertConfig, MobileBertModel),
         (TransfoXLConfig, TransfoXLModel),
         (XLNetConfig, XLNetModel),
         (FlaubertConfig, FlaubertModel),
@@ -190,6 +208,7 @@ MODEL_FOR_PRETRAINING_MAPPING = OrderedDict(
         (BertConfig, BertForPreTraining),
         (OpenAIGPTConfig, OpenAIGPTLMHeadModel),
         (GPT2Config, GPT2LMHeadModel),
+        (MobileBertConfig, MobileBertForPreTraining),
         (TransfoXLConfig, TransfoXLLMHeadModel),
         (XLNetConfig, XLNetLMHeadModel),
         (FlaubertConfig, FlaubertWithLMHeadModel),
@@ -213,6 +232,7 @@ MODEL_WITH_LM_HEAD_MAPPING = OrderedDict(
         (BertConfig, BertForMaskedLM),
         (OpenAIGPTConfig, OpenAIGPTLMHeadModel),
         (GPT2Config, GPT2LMHeadModel),
+        (MobileBertConfig, MobileBertForMaskedLM),
         (TransfoXLConfig, TransfoXLLMHeadModel),
         (XLNetConfig, XLNetLMHeadModel),
         (FlaubertConfig, FlaubertWithLMHeadModel),
@@ -249,9 +269,11 @@ MODEL_FOR_MASKED_LM_MAPPING = OrderedDict(
         (LongformerConfig, LongformerForMaskedLM),
         (RobertaConfig, RobertaForMaskedLM),
         (BertConfig, BertForMaskedLM),
+        (MobileBertConfig, MobileBertForMaskedLM),
         (FlaubertConfig, FlaubertWithLMHeadModel),
         (XLMConfig, XLMWithLMHeadModel),
         (ElectraConfig, ElectraForMaskedLM),
+        (ReformerConfig, ReformerForMaskedLM),
     ]
 )
 
@@ -275,6 +297,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING = OrderedDict(
         (RobertaConfig, RobertaForSequenceClassification),
         (BertConfig, BertForSequenceClassification),
         (XLNetConfig, XLNetForSequenceClassification),
+        (MobileBertConfig, MobileBertForSequenceClassification),
         (FlaubertConfig, FlaubertForSequenceClassification),
         (XLMConfig, XLMForSequenceClassification),
         (ElectraConfig, ElectraForSequenceClassification),
@@ -285,6 +308,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING = OrderedDict(
     [
         (DistilBertConfig, DistilBertForQuestionAnswering),
         (AlbertConfig, AlbertForQuestionAnswering),
+        (CamembertConfig, CamembertForQuestionAnswering),
         (BartConfig, BartForQuestionAnswering),
         (LongformerConfig, LongformerForQuestionAnswering),
         (XLMRobertaConfig, XLMRobertaForQuestionAnswering),
@@ -292,8 +316,10 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING = OrderedDict(
         (BertConfig, BertForQuestionAnswering),
         (XLNetConfig, XLNetForQuestionAnsweringSimple),
         (FlaubertConfig, FlaubertForQuestionAnsweringSimple),
+        (MobileBertConfig, MobileBertForQuestionAnswering),
         (XLMConfig, XLMForQuestionAnsweringSimple),
         (ElectraConfig, ElectraForQuestionAnswering),
+        (ReformerConfig, ReformerForQuestionAnswering),
     ]
 )
 
@@ -301,17 +327,18 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING = OrderedDict(
     [
         (DistilBertConfig, DistilBertForTokenClassification),
         (CamembertConfig, CamembertForTokenClassification),
+        (FlaubertConfig, FlaubertForTokenClassification),
         (XLMConfig, XLMForTokenClassification),
         (XLMRobertaConfig, XLMRobertaForTokenClassification),
         (LongformerConfig, LongformerForTokenClassification),
         (RobertaConfig, RobertaForTokenClassification),
         (BertConfig, BertForTokenClassification),
+        (MobileBertConfig, MobileBertForTokenClassification),
         (XLNetConfig, XLNetForTokenClassification),
         (AlbertConfig, AlbertForTokenClassification),
         (ElectraConfig, ElectraForTokenClassification),
     ]
 )
-
 
 MODEL_FOR_MULTIPLE_CHOICE_MAPPING = OrderedDict(
     [
@@ -322,6 +349,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING = OrderedDict(
         (RobertaConfig, RobertaForMultipleChoice),
         (BertConfig, BertForMultipleChoice),
         (DistilBertConfig, DistilBertForMultipleChoice),
+        (MobileBertConfig, MobileBertForMultipleChoice),
         (XLNetConfig, XLNetForMultipleChoice),
         (AlbertConfig, AlbertForMultipleChoice),
     ]
@@ -374,8 +402,8 @@ class AutoModel:
 
         Examples::
 
-            config = BertConfig.from_pretrained('bert-base-uncased')    # Download configuration from S3 and cache.
-            model = AutoModel.from_config(config)  # E.g. model was saved using `save_pretrained('./test/saved_model/')`
+            >>> config = BertConfig.from_pretrained('bert-base-uncased')    # Download configuration from S3 and cache.
+            >>> model = AutoModel.from_config(config)  # E.g. model was saved using `save_pretrained('./test/saved_model/')`
         """
         for config_class, model_class in MODEL_MAPPING.items():
             if isinstance(config, config_class):
@@ -462,8 +490,7 @@ class AutoModel:
         Examples::
 
             model = AutoModel.from_pretrained('bert-base-uncased')    # Download model and configuration from S3 and cache.
-            model = AutoModel.from_pretrained('./test/bert_model/')  # E.g. model was saved using `save_pretrained('./test/saved_model/')`
-            assert model.config.output_attention == True
+            assert model.config.output_attentions == True
             # Loading from a TF checkpoint file instead of a PyTorch model (slower)
             config = AutoConfig.from_json_file('./tf_model/bert_tf_model_config.json')
             model = AutoModel.from_pretrained('./tf_model/bert_tf_checkpoint.ckpt.index', from_tf=True, config=config)
@@ -471,7 +498,9 @@ class AutoModel:
         """
         config = kwargs.pop("config", None)
         if not isinstance(config, PretrainedConfig):
-            config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+            config, kwargs = AutoConfig.from_pretrained(
+                pretrained_model_name_or_path, return_unused_kwargs=True, **kwargs
+            )
 
         for config_class, model_class in MODEL_MAPPING.items():
             if isinstance(config, config_class):
@@ -529,8 +558,8 @@ class AutoModelForPreTraining:
 
         Examples::
 
-            config = BertConfig.from_pretrained('bert-base-uncased')    # Download configuration from S3 and cache.
-            model = AutoModelForPreTraining.from_config(config)  # E.g. model was saved using `save_pretrained('./test/saved_model/')`
+            >>> config = BertConfig.from_pretrained('bert-base-uncased')    # Download configuration from S3 and cache.
+            >>> model = AutoModelForPreTraining.from_config(config)  # E.g. model was saved using `save_pretrained('./test/saved_model/')`
         """
         for config_class, model_class in MODEL_FOR_PRETRAINING_MAPPING.items():
             if isinstance(config, config_class):
@@ -618,7 +647,9 @@ class AutoModelForPreTraining:
         """
         config = kwargs.pop("config", None)
         if not isinstance(config, PretrainedConfig):
-            config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+            config, kwargs = AutoConfig.from_pretrained(
+                pretrained_model_name_or_path, return_unused_kwargs=True, **kwargs
+            )
 
         for config_class, model_class in MODEL_FOR_PRETRAINING_MAPPING.items():
             if isinstance(config, config_class):
@@ -775,7 +806,9 @@ class AutoModelWithLMHead:
         )
         config = kwargs.pop("config", None)
         if not isinstance(config, PretrainedConfig):
-            config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+            config, kwargs = AutoConfig.from_pretrained(
+                pretrained_model_name_or_path, return_unused_kwargs=True, **kwargs
+            )
 
         for config_class, model_class in MODEL_WITH_LM_HEAD_MAPPING.items():
             if isinstance(config, config_class):
@@ -910,7 +943,9 @@ class AutoModelForCausalLM:
         """
         config = kwargs.pop("config", None)
         if not isinstance(config, PretrainedConfig):
-            config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+            config, kwargs = AutoConfig.from_pretrained(
+                pretrained_model_name_or_path, return_unused_kwargs=True, **kwargs
+            )
 
         for config_class, model_class in MODEL_FOR_CAUSAL_LM_MAPPING.items():
             if isinstance(config, config_class):
@@ -1051,7 +1086,9 @@ class AutoModelForMaskedLM:
         """
         config = kwargs.pop("config", None)
         if not isinstance(config, PretrainedConfig):
-            config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+            config, kwargs = AutoConfig.from_pretrained(
+                pretrained_model_name_or_path, return_unused_kwargs=True, **kwargs
+            )
 
         for config_class, model_class in MODEL_FOR_MASKED_LM_MAPPING.items():
             if isinstance(config, config_class):
@@ -1182,7 +1219,9 @@ class AutoModelForSeq2SeqLM:
         """
         config = kwargs.pop("config", None)
         if not isinstance(config, PretrainedConfig):
-            config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+            config, kwargs = AutoConfig.from_pretrained(
+                pretrained_model_name_or_path, return_unused_kwargs=True, **kwargs
+            )
 
         for config_class, model_class in MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING.items():
             if isinstance(config, config_class):
@@ -1332,7 +1371,9 @@ class AutoModelForSequenceClassification:
         """
         config = kwargs.pop("config", None)
         if not isinstance(config, PretrainedConfig):
-            config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+            config, kwargs = AutoConfig.from_pretrained(
+                pretrained_model_name_or_path, return_unused_kwargs=True, **kwargs
+            )
 
         for config_class, model_class in MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING.items():
             if isinstance(config, config_class):
@@ -1474,7 +1515,9 @@ class AutoModelForQuestionAnswering:
         """
         config = kwargs.pop("config", None)
         if not isinstance(config, PretrainedConfig):
-            config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+            config, kwargs = AutoConfig.from_pretrained(
+                pretrained_model_name_or_path, return_unused_kwargs=True, **kwargs
+            )
 
         for config_class, model_class in MODEL_FOR_QUESTION_ANSWERING_MAPPING.items():
             if isinstance(config, config_class):
@@ -1527,6 +1570,7 @@ class AutoModelForTokenClassification:
                 - isInstance of `bert` configuration class: :class:`~transformers.BertModelForTokenClassification` (Bert model)
                 - isInstance of `albert` configuration class: :class:`~transformers.AlbertForTokenClassification` (AlBert model)
                 - isInstance of `xlnet` configuration class: :class:`~transformers.XLNetModelForTokenClassification` (XLNet model)
+                - isInstance of `flaubert` configuration class: :class:`~transformers.FlaubertForTokenClassification` (Flaubert model)
                 - isInstance of `camembert` configuration class: :class:`~transformers.CamembertModelForTokenClassification` (Camembert model)
                 - isInstance of `roberta` configuration class: :class:`~transformers.RobertaModelForTokenClassification` (Roberta model)
                 - isInstance of `electra` configuration class: :class:`~transformers.ElectraForTokenClassification` (Electra model)
@@ -1564,6 +1608,7 @@ class AutoModelForTokenClassification:
             - `camembert`: :class:`~transformers.CamembertForTokenClassification` (Camembert model)
             - `bert`: :class:`~transformers.BertForTokenClassification` (Bert model)
             - `xlnet`: :class:`~transformers.XLNetForTokenClassification` (XLNet model)
+            - `flaubert`: :class:`~transformers.FlaubertForTokenClassification` (Flaubert model)
             - `roberta`: :class:`~transformers.RobertaForTokenClassification` (Roberta model)
             - `electra`: :class:`~transformers.ElectraForTokenClassification` (Electra model)
 
@@ -1622,7 +1667,9 @@ class AutoModelForTokenClassification:
         """
         config = kwargs.pop("config", None)
         if not isinstance(config, PretrainedConfig):
-            config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+            config, kwargs = AutoConfig.from_pretrained(
+                pretrained_model_name_or_path, return_unused_kwargs=True, **kwargs
+            )
 
         for config_class, model_class in MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING.items():
             if isinstance(config, config_class):
@@ -1674,7 +1721,9 @@ class AutoModelForMultipleChoice:
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
         config = kwargs.pop("config", None)
         if not isinstance(config, PretrainedConfig):
-            config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+            config, kwargs = AutoConfig.from_pretrained(
+                pretrained_model_name_or_path, return_unused_kwargs=True, **kwargs
+            )
 
         for config_class, model_class in MODEL_FOR_MULTIPLE_CHOICE_MAPPING.items():
             if isinstance(config, config_class):
