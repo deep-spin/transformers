@@ -15,7 +15,6 @@
 """ Auto Model class. """
 
 
-import logging
 import warnings
 from collections import OrderedDict
 
@@ -29,6 +28,7 @@ from .configuration_auto import (
     ElectraConfig,
     FlaubertConfig,
     GPT2Config,
+    LongformerConfig,
     MobileBertConfig,
     OpenAIGPTConfig,
     RobertaConfig,
@@ -77,8 +77,10 @@ from .modeling_tf_distilbert import (
 )
 from .modeling_tf_electra import (
     TFElectraForMaskedLM,
+    TFElectraForMultipleChoice,
     TFElectraForPreTraining,
     TFElectraForQuestionAnswering,
+    TFElectraForSequenceClassification,
     TFElectraForTokenClassification,
     TFElectraModel,
 )
@@ -91,6 +93,7 @@ from .modeling_tf_flaubert import (
     TFFlaubertWithLMHeadModel,
 )
 from .modeling_tf_gpt2 import TFGPT2LMHeadModel, TFGPT2Model
+from .modeling_tf_longformer import TFLongformerForMaskedLM, TFLongformerForQuestionAnswering, TFLongformerModel
 from .modeling_tf_mobilebert import (
     TFMobileBertForMaskedLM,
     TFMobileBertForMultipleChoice,
@@ -135,9 +138,10 @@ from .modeling_tf_xlnet import (
     TFXLNetLMHeadModel,
     TFXLNetModel,
 )
+from .utils import logging
 
 
-logger = logging.getLogger(__name__)
+logger = logging.get_logger(__name__)
 
 
 TF_MODEL_MAPPING = OrderedDict(
@@ -147,6 +151,7 @@ TF_MODEL_MAPPING = OrderedDict(
         (AlbertConfig, TFAlbertModel),
         (CamembertConfig, TFCamembertModel),
         (XLMRobertaConfig, TFXLMRobertaModel),
+        (LongformerConfig, TFLongformerModel),
         (RobertaConfig, TFRobertaModel),
         (BertConfig, TFBertModel),
         (OpenAIGPTConfig, TFOpenAIGPTModel),
@@ -189,6 +194,7 @@ TF_MODEL_WITH_LM_HEAD_MAPPING = OrderedDict(
         (AlbertConfig, TFAlbertForMaskedLM),
         (CamembertConfig, TFCamembertForMaskedLM),
         (XLMRobertaConfig, TFXLMRobertaForMaskedLM),
+        (LongformerConfig, TFLongformerForMaskedLM),
         (RobertaConfig, TFRobertaForMaskedLM),
         (BertConfig, TFBertForMaskedLM),
         (OpenAIGPTConfig, TFOpenAIGPTLMHeadModel),
@@ -224,6 +230,7 @@ TF_MODEL_FOR_MASKED_LM_MAPPING = OrderedDict(
         (AlbertConfig, TFAlbertForMaskedLM),
         (CamembertConfig, TFCamembertForMaskedLM),
         (XLMRobertaConfig, TFXLMRobertaForMaskedLM),
+        (LongformerConfig, TFLongformerForMaskedLM),
         (RobertaConfig, TFRobertaForMaskedLM),
         (BertConfig, TFBertForMaskedLM),
         (MobileBertConfig, TFMobileBertForMaskedLM),
@@ -247,6 +254,7 @@ TF_MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING = OrderedDict(
         (MobileBertConfig, TFMobileBertForSequenceClassification),
         (FlaubertConfig, TFFlaubertForSequenceClassification),
         (XLMConfig, TFXLMForSequenceClassification),
+        (ElectraConfig, TFElectraForSequenceClassification),
     ]
 )
 
@@ -256,6 +264,7 @@ TF_MODEL_FOR_QUESTION_ANSWERING_MAPPING = OrderedDict(
         (AlbertConfig, TFAlbertForQuestionAnswering),
         (CamembertConfig, TFCamembertForQuestionAnswering),
         (XLMRobertaConfig, TFXLMRobertaForQuestionAnswering),
+        (LongformerConfig, TFLongformerForQuestionAnswering),
         (RobertaConfig, TFRobertaForQuestionAnswering),
         (BertConfig, TFBertForQuestionAnswering),
         (XLNetConfig, TFXLNetForQuestionAnsweringSimple),
@@ -294,33 +303,34 @@ TF_MODEL_FOR_MULTIPLE_CHOICE_MAPPING = OrderedDict(
         (XLNetConfig, TFXLNetForMultipleChoice),
         (FlaubertConfig, TFFlaubertForMultipleChoice),
         (AlbertConfig, TFAlbertForMultipleChoice),
+        (ElectraConfig, TFElectraForMultipleChoice),
     ]
 )
 
 
 class TFAutoModel(object):
     r"""
-        :class:`~transformers.TFAutoModel` is a generic model class
-        that will be instantiated as one of the base model classes of the library
-        when created with the `TFAutoModel.from_pretrained(pretrained_model_name_or_path)`
-        class method.
+    :class:`~transformers.TFAutoModel` is a generic model class
+    that will be instantiated as one of the base model classes of the library
+    when created with the `TFAutoModel.from_pretrained(pretrained_model_name_or_path)`
+    class method.
 
-        The `from_pretrained()` method takes care of returning the correct model class instance
-        based on the `model_type` property of the config object, or when it's missing,
-        falling back to using pattern matching on the `pretrained_model_name_or_path` string:
+    The `from_pretrained()` method takes care of returning the correct model class instance
+    based on the `model_type` property of the config object, or when it's missing,
+    falling back to using pattern matching on the `pretrained_model_name_or_path` string:
 
-            - `t5`: TFT5Model (T5 model)
-            - `distilbert`: TFDistilBertModel (DistilBERT model)
-            - `roberta`: TFRobertaModel (RoBERTa model)
-            - `bert`: TFBertModel (Bert model)
-            - `openai-gpt`: TFOpenAIGPTModel (OpenAI GPT model)
-            - `gpt2`: TFGPT2Model (OpenAI GPT-2 model)
-            - `transfo-xl`: TFTransfoXLModel (Transformer-XL model)
-            - `xlnet`: TFXLNetModel (XLNet model)
-            - `xlm`: TFXLMModel (XLM model)
-            - `ctrl`: TFCTRLModel (CTRL model)
+        - `t5`: TFT5Model (T5 model)
+        - `distilbert`: TFDistilBertModel (DistilBERT model)
+        - `roberta`: TFRobertaModel (RoBERTa model)
+        - `bert`: TFBertModel (Bert model)
+        - `openai-gpt`: TFOpenAIGPTModel (OpenAI GPT model)
+        - `gpt2`: TFGPT2Model (OpenAI GPT-2 model)
+        - `transfo-xl`: TFTransfoXLModel (Transformer-XL model)
+        - `xlnet`: TFXLNetModel (XLNet model)
+        - `xlm`: TFXLMModel (XLM model)
+        - `ctrl`: TFCTRLModel (CTRL model)
 
-        This class cannot be instantiated using `__init__()` (throws an error).
+    This class cannot be instantiated using `__init__()` (throws an error).
     """
 
     def __init__(self):
@@ -332,7 +342,7 @@ class TFAutoModel(object):
 
     @classmethod
     def from_config(cls, config):
-        r""" Instantiates one of the base model classes of the library
+        r"""Instantiates one of the base model classes of the library
         from a configuration.
 
         Note:
@@ -371,7 +381,7 @@ class TFAutoModel(object):
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
-        r""" Instantiates one of the base model classes of the library
+        r"""Instantiates one of the base model classes of the library
         from a pre-trained model configuration.
 
         The `from_pretrained()` method takes care of returning the correct model class instance
@@ -467,11 +477,11 @@ class TFAutoModel(object):
 
 class TFAutoModelForPreTraining(object):
     r"""
-        :class:`~transformers.TFAutoModelForPreTraining` is a generic model class
-        that will be instantiated as one of the model classes of the library -with the architecture used for pretraining this model– when created with the `TFAutoModelForPreTraining.from_pretrained(pretrained_model_name_or_path)`
-        class method.
+    :class:`~transformers.TFAutoModelForPreTraining` is a generic model class
+    that will be instantiated as one of the model classes of the library -with the architecture used for pretraining this model– when created with the `TFAutoModelForPreTraining.from_pretrained(pretrained_model_name_or_path)`
+    class method.
 
-        This class cannot be instantiated using `__init__()` (throws an error).
+    This class cannot be instantiated using `__init__()` (throws an error).
     """
 
     def __init__(self):
@@ -483,7 +493,7 @@ class TFAutoModelForPreTraining(object):
 
     @classmethod
     def from_config(cls, config):
-        r""" Instantiates one of the base model classes of the library
+        r"""Instantiates one of the base model classes of the library
         from a configuration.
 
         Note:
@@ -522,7 +532,7 @@ class TFAutoModelForPreTraining(object):
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
-        r""" Instantiates one of the model classes of the library -with the architecture used for pretraining this model– from a pre-trained model configuration.
+        r"""Instantiates one of the model classes of the library -with the architecture used for pretraining this model– from a pre-trained model configuration.
 
         The `from_pretrained()` method takes care of returning the correct model class instance
         based on the `model_type` property of the config object, or when it's missing,
@@ -620,27 +630,27 @@ class TFAutoModelForPreTraining(object):
 
 class TFAutoModelWithLMHead(object):
     r"""
-        :class:`~transformers.TFAutoModelWithLMHead` is a generic model class
-        that will be instantiated as one of the language modeling model classes of the library
-        when created with the `TFAutoModelWithLMHead.from_pretrained(pretrained_model_name_or_path)`
-        class method.
+    :class:`~transformers.TFAutoModelWithLMHead` is a generic model class
+    that will be instantiated as one of the language modeling model classes of the library
+    when created with the `TFAutoModelWithLMHead.from_pretrained(pretrained_model_name_or_path)`
+    class method.
 
-        The `from_pretrained()` method takes care of returning the correct model class instance
-        based on the `model_type` property of the config object, or when it's missing,
-        falling back to using pattern matching on the `pretrained_model_name_or_path` string:
+    The `from_pretrained()` method takes care of returning the correct model class instance
+    based on the `model_type` property of the config object, or when it's missing,
+    falling back to using pattern matching on the `pretrained_model_name_or_path` string:
 
-            - `t5`: TFT5ForConditionalGeneration (T5 model)
-            - `distilbert`: TFDistilBertForMaskedLM (DistilBERT model)
-            - `roberta`: TFRobertaForMaskedLM (RoBERTa model)
-            - `bert`: TFBertForMaskedLM (Bert model)
-            - `openai-gpt`: TFOpenAIGPTLMHeadModel (OpenAI GPT model)
-            - `gpt2`: TFGPT2LMHeadModel (OpenAI GPT-2 model)
-            - `transfo-xl`: TFTransfoXLLMHeadModel (Transformer-XL model)
-            - `xlnet`: TFXLNetLMHeadModel (XLNet model)
-            - `xlm`: TFXLMWithLMHeadModel (XLM model)
-            - `ctrl`: TFCTRLLMHeadModel (CTRL model)
+        - `t5`: TFT5ForConditionalGeneration (T5 model)
+        - `distilbert`: TFDistilBertForMaskedLM (DistilBERT model)
+        - `roberta`: TFRobertaForMaskedLM (RoBERTa model)
+        - `bert`: TFBertForMaskedLM (Bert model)
+        - `openai-gpt`: TFOpenAIGPTLMHeadModel (OpenAI GPT model)
+        - `gpt2`: TFGPT2LMHeadModel (OpenAI GPT-2 model)
+        - `transfo-xl`: TFTransfoXLLMHeadModel (Transformer-XL model)
+        - `xlnet`: TFXLNetLMHeadModel (XLNet model)
+        - `xlm`: TFXLMWithLMHeadModel (XLM model)
+        - `ctrl`: TFCTRLLMHeadModel (CTRL model)
 
-        This class cannot be instantiated using `__init__()` (throws an error).
+    This class cannot be instantiated using `__init__()` (throws an error).
     """
 
     def __init__(self):
@@ -652,7 +662,7 @@ class TFAutoModelWithLMHead(object):
 
     @classmethod
     def from_config(cls, config):
-        r""" Instantiates one of the base model classes of the library
+        r"""Instantiates one of the base model classes of the library
         from a configuration.
 
         Note:
@@ -695,7 +705,7 @@ class TFAutoModelWithLMHead(object):
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
-        r""" Instantiates one of the language modeling model classes of the library
+        r"""Instantiates one of the language modeling model classes of the library
         from a pre-trained model configuration.
 
         The `from_pretrained()` method takes care of returning the correct model class instance
@@ -798,18 +808,18 @@ class TFAutoModelWithLMHead(object):
 
 class TFAutoModelForMultipleChoice:
     r"""
-        :class:`~transformers.TFAutoModelForMultipleChoice` is a generic model class
-        that will be instantiated as one of the multiple choice model classes of the library
-        when created with the `TFAutoModelForMultipleChoice.from_pretrained(pretrained_model_name_or_path)`
-        class method.
+    :class:`~transformers.TFAutoModelForMultipleChoice` is a generic model class
+    that will be instantiated as one of the multiple choice model classes of the library
+    when created with the `TFAutoModelForMultipleChoice.from_pretrained(pretrained_model_name_or_path)`
+    class method.
 
-        The `from_pretrained()` method takes care of returning the correct model class instance
-        based on the `model_type` property of the config object, or when it's missing,
-        falling back to using pattern matching on the `pretrained_model_name_or_path` string:
-            - `albert`: TFAlbertForMultipleChoice (Albert model)
-            - `bert`: TFBertForMultipleChoice (Bert model)
+    The `from_pretrained()` method takes care of returning the correct model class instance
+    based on the `model_type` property of the config object, or when it's missing,
+    falling back to using pattern matching on the `pretrained_model_name_or_path` string:
+        - `albert`: TFAlbertForMultipleChoice (Albert model)
+        - `bert`: TFBertForMultipleChoice (Bert model)
 
-        This class cannot be instantiated using `__init__()` (throws an error).
+    This class cannot be instantiated using `__init__()` (throws an error).
     """
 
     def __init__(self):
@@ -821,7 +831,7 @@ class TFAutoModelForMultipleChoice:
 
     @classmethod
     def from_config(cls, config):
-        r""" Instantiates one of the base model classes of the library
+        r"""Instantiates one of the base model classes of the library
         from a configuration.
 
         Note:
@@ -854,7 +864,7 @@ class TFAutoModelForMultipleChoice:
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
-        r""" Instantiates one of the multiple choice model classes of the library
+        r"""Instantiates one of the multiple choice model classes of the library
         from a pre-trained model configuration.
 
         The `from_pretrained()` method takes care of returning the correct model class instance
@@ -948,12 +958,12 @@ class TFAutoModelForMultipleChoice:
 
 class TFAutoModelForCausalLM:
     r"""
-        :class:`~transformers.TFAutoModelForCausalLM` is a generic model class
-        that will be instantiated as one of the language modeling model classes of the library
-        when created with the `TFAutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path)`
-        class method.
+    :class:`~transformers.TFAutoModelForCausalLM` is a generic model class
+    that will be instantiated as one of the language modeling model classes of the library
+    when created with the `TFAutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path)`
+    class method.
 
-        This class cannot be instantiated using `__init__()` (throws an error).
+    This class cannot be instantiated using `__init__()` (throws an error).
     """
 
     def __init__(self):
@@ -965,7 +975,7 @@ class TFAutoModelForCausalLM:
 
     @classmethod
     def from_config(cls, config):
-        r""" Instantiates one of the base model classes of the library
+        r"""Instantiates one of the base model classes of the library
         from a configuration.
 
         Note:
@@ -1001,7 +1011,7 @@ class TFAutoModelForCausalLM:
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
-        r""" Instantiates one of the language modeling model classes of the library
+        r"""Instantiates one of the language modeling model classes of the library
         from a pre-trained model configuration.
 
         The `from_pretrained()` method takes care of returning the correct model class instance
@@ -1083,12 +1093,12 @@ class TFAutoModelForCausalLM:
 
 class TFAutoModelForMaskedLM:
     r"""
-        :class:`~transformers.TFAutoModelForMaskedLM` is a generic model class
-        that will be instantiated as one of the language modeling model classes of the library
-        when created with the `TFAutoModelForMaskedLM.from_pretrained(pretrained_model_name_or_path)`
-        class method.
+    :class:`~transformers.TFAutoModelForMaskedLM` is a generic model class
+    that will be instantiated as one of the language modeling model classes of the library
+    when created with the `TFAutoModelForMaskedLM.from_pretrained(pretrained_model_name_or_path)`
+    class method.
 
-        This class cannot be instantiated using `__init__()` (throws an error).
+    This class cannot be instantiated using `__init__()` (throws an error).
     """
 
     def __init__(self):
@@ -1100,7 +1110,7 @@ class TFAutoModelForMaskedLM:
 
     @classmethod
     def from_config(cls, config):
-        r""" Instantiates one of the base model classes of the library
+        r"""Instantiates one of the base model classes of the library
         from a configuration.
 
         Note:
@@ -1139,7 +1149,7 @@ class TFAutoModelForMaskedLM:
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
-        r""" Instantiates one of the language modeling model classes of the library
+        r"""Instantiates one of the language modeling model classes of the library
         from a pre-trained model configuration.
 
         The `from_pretrained()` method takes care of returning the correct model class instance
@@ -1225,12 +1235,12 @@ class TFAutoModelForMaskedLM:
 
 class TFAutoModelForSeq2SeqLM:
     r"""
-        :class:`~transformers.TFAutoModelForSeq2SeqLM` is a generic model class
-        that will be instantiated as one of the language modeling model classes of the library
-        when created with the `TFAutoModelForSeq2SeqLM.from_pretrained(pretrained_model_name_or_path)`
-        class method.
+    :class:`~transformers.TFAutoModelForSeq2SeqLM` is a generic model class
+    that will be instantiated as one of the language modeling model classes of the library
+    when created with the `TFAutoModelForSeq2SeqLM.from_pretrained(pretrained_model_name_or_path)`
+    class method.
 
-        This class cannot be instantiated using `__init__()` (throws an error).
+    This class cannot be instantiated using `__init__()` (throws an error).
     """
 
     def __init__(self):
@@ -1242,7 +1252,7 @@ class TFAutoModelForSeq2SeqLM:
 
     @classmethod
     def from_config(cls, config):
-        r""" Instantiates one of the base model classes of the library
+        r"""Instantiates one of the base model classes of the library
         from a configuration.
 
         Note:
@@ -1275,7 +1285,7 @@ class TFAutoModelForSeq2SeqLM:
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
-        r""" Instantiates one of the language modeling model classes of the library
+        r"""Instantiates one of the language modeling model classes of the library
         from a pre-trained model configuration.
 
         The `from_pretrained()` method takes care of returning the correct model class instance
@@ -1354,22 +1364,22 @@ class TFAutoModelForSeq2SeqLM:
 
 class TFAutoModelForSequenceClassification(object):
     r"""
-        :class:`~transformers.TFAutoModelForSequenceClassification` is a generic model class
-        that will be instantiated as one of the sequence classification model classes of the library
-        when created with the `TFAutoModelForSequenceClassification.from_pretrained(pretrained_model_name_or_path)`
-        class method.
+    :class:`~transformers.TFAutoModelForSequenceClassification` is a generic model class
+    that will be instantiated as one of the sequence classification model classes of the library
+    when created with the `TFAutoModelForSequenceClassification.from_pretrained(pretrained_model_name_or_path)`
+    class method.
 
-        The `from_pretrained()` method takes care of returning the correct model class instance
-        based on the `model_type` property of the config object, or when it's missing,
-        falling back to using pattern matching on the `pretrained_model_name_or_path` string:
+    The `from_pretrained()` method takes care of returning the correct model class instance
+    based on the `model_type` property of the config object, or when it's missing,
+    falling back to using pattern matching on the `pretrained_model_name_or_path` string:
 
-            - `distilbert`: TFDistilBertForSequenceClassification (DistilBERT model)
-            - `roberta`: TFRobertaForSequenceClassification (RoBERTa model)
-            - `bert`: TFBertForSequenceClassification (Bert model)
-            - `xlnet`: TFXLNetForSequenceClassification (XLNet model)
-            - `xlm`: TFXLMForSequenceClassification (XLM model)
+        - `distilbert`: TFDistilBertForSequenceClassification (DistilBERT model)
+        - `roberta`: TFRobertaForSequenceClassification (RoBERTa model)
+        - `bert`: TFBertForSequenceClassification (Bert model)
+        - `xlnet`: TFXLNetForSequenceClassification (XLNet model)
+        - `xlm`: TFXLMForSequenceClassification (XLM model)
 
-        This class cannot be instantiated using `__init__()` (throws an error).
+    This class cannot be instantiated using `__init__()` (throws an error).
     """
 
     def __init__(self):
@@ -1381,7 +1391,7 @@ class TFAutoModelForSequenceClassification(object):
 
     @classmethod
     def from_config(cls, config):
-        r""" Instantiates one of the base model classes of the library
+        r"""Instantiates one of the base model classes of the library
         from a configuration.
 
         Note:
@@ -1418,7 +1428,7 @@ class TFAutoModelForSequenceClassification(object):
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
-        r""" Instantiates one of the sequence classification model classes of the library
+        r"""Instantiates one of the sequence classification model classes of the library
         from a pre-trained model configuration.
 
         The `from_pretrained()` method takes care of returning the correct model class instance
@@ -1515,23 +1525,23 @@ class TFAutoModelForSequenceClassification(object):
 
 class TFAutoModelForQuestionAnswering(object):
     r"""
-        :class:`~transformers.TFAutoModelForQuestionAnswering` is a generic model class
-        that will be instantiated as one of the question answering model classes of the library
-        when created with the `TFAutoModelForQuestionAnswering.from_pretrained(pretrained_model_name_or_path)`
-        class method.
+    :class:`~transformers.TFAutoModelForQuestionAnswering` is a generic model class
+    that will be instantiated as one of the question answering model classes of the library
+    when created with the `TFAutoModelForQuestionAnswering.from_pretrained(pretrained_model_name_or_path)`
+    class method.
 
-        The `from_pretrained()` method takes care of returning the correct model class instance
-        based on the `model_type` property of the config object, or when it's missing,
-        falling back to using pattern matching on the `pretrained_model_name_or_path` string:
+    The `from_pretrained()` method takes care of returning the correct model class instance
+    based on the `model_type` property of the config object, or when it's missing,
+    falling back to using pattern matching on the `pretrained_model_name_or_path` string:
 
-            - `distilbert`: TFDistilBertForQuestionAnswering (DistilBERT model)
-            - `albert`: TFAlbertForQuestionAnswering (ALBERT model)
-            - `roberta`: TFRobertaForQuestionAnswering (RoBERTa model)
-            - `bert`: TFBertForQuestionAnswering (Bert model)
-            - `xlnet`: TFXLNetForQuestionAnswering (XLNet model)
-            - `xlm`: TFXLMForQuestionAnswering (XLM model)
+        - `distilbert`: TFDistilBertForQuestionAnswering (DistilBERT model)
+        - `albert`: TFAlbertForQuestionAnswering (ALBERT model)
+        - `roberta`: TFRobertaForQuestionAnswering (RoBERTa model)
+        - `bert`: TFBertForQuestionAnswering (Bert model)
+        - `xlnet`: TFXLNetForQuestionAnswering (XLNet model)
+        - `xlm`: TFXLMForQuestionAnswering (XLM model)
 
-        This class cannot be instantiated using `__init__()` (throws an error).
+    This class cannot be instantiated using `__init__()` (throws an error).
     """
 
     def __init__(self):
@@ -1543,7 +1553,7 @@ class TFAutoModelForQuestionAnswering(object):
 
     @classmethod
     def from_config(cls, config):
-        r""" Instantiates one of the base model classes of the library
+        r"""Instantiates one of the base model classes of the library
         from a configuration.
 
         Note:
@@ -1581,7 +1591,7 @@ class TFAutoModelForQuestionAnswering(object):
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
-        r""" Instantiates one of the question answering model classes of the library
+        r"""Instantiates one of the question answering model classes of the library
         from a pre-trained model configuration.
 
         The `from_pretrained()` method takes care of returning the correct model class instance
@@ -1687,7 +1697,7 @@ class TFAutoModelForTokenClassification:
 
     @classmethod
     def from_config(cls, config):
-        r""" Instantiates one of the base model classes of the library
+        r"""Instantiates one of the base model classes of the library
         from a configuration.
 
         Note:
@@ -1723,7 +1733,7 @@ class TFAutoModelForTokenClassification:
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
-        r""" Instantiates one of the question answering model classes of the library
+        r"""Instantiates one of the question answering model classes of the library
         from a pre-trained model configuration.
 
         The `from_pretrained()` method takes care of returning the correct model class instance

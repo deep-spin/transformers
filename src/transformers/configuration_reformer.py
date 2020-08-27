@@ -15,13 +15,11 @@
 # limitations under the License.
 """ Reformer model configuration """
 
-
-import logging
-
 from .configuration_utils import PretrainedConfig
+from .utils import logging
 
 
-logger = logging.getLogger(__name__)
+logger = logging.get_logger(__name__)
 
 REFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP = {
     "google/reformer-crime-and-punishment": "https://cdn.huggingface.co/google/reformer-crime-and-punishment/config.json",
@@ -153,7 +151,6 @@ class ReformerConfig(PretrainedConfig):
         axial_pos_shape=[64, 64],
         axial_pos_embds_dim=[64, 192],
         chunk_size_lm_head=0,
-        chunk_size_feed_forward=0,
         eos_token_id=2,
         feed_forward_size=512,
         hash_seed=None,
@@ -179,9 +176,16 @@ class ReformerConfig(PretrainedConfig):
         num_hashes=1,
         pad_token_id=0,
         vocab_size=320,
+        tie_word_embeddings=False,
         **kwargs
     ):
-        super().__init__(pad_token_id=pad_token_id, eos_token_id=eos_token_id, is_decoder=is_decoder, **kwargs)
+        super().__init__(
+            pad_token_id=pad_token_id,
+            eos_token_id=eos_token_id,
+            is_decoder=is_decoder,
+            tie_word_embeddings=tie_word_embeddings,
+            **kwargs,
+        )
 
         self.hash_seed = hash_seed
         self.vocab_size = vocab_size
@@ -212,5 +216,4 @@ class ReformerConfig(PretrainedConfig):
         self.axial_pos_embds_dim = tuple(axial_pos_embds_dim)
         self.axial_norm_std = axial_norm_std
         self.chunk_size_lm_head = chunk_size_lm_head
-        self.chunk_size_feed_forward = chunk_size_feed_forward
         self.attn_layers = attn_layers

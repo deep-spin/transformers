@@ -15,9 +15,6 @@
 # limitations under the License.
 """PyTorch XLM-RoBERTa model. """
 
-
-import logging
-
 from .configuration_xlm_roberta import XLMRobertaConfig
 from .file_utils import add_start_docstrings
 from .modeling_roberta import (
@@ -28,9 +25,10 @@ from .modeling_roberta import (
     RobertaForTokenClassification,
     RobertaModel,
 )
+from .utils import logging
 
 
-logger = logging.getLogger(__name__)
+logger = logging.get_logger(__name__)
 
 XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST = [
     "xlm-roberta-base",
@@ -53,12 +51,6 @@ XLM_ROBERTA_START_DOCSTRING = r"""
         config (:class:`~transformers.XLMRobertaConfig`): Model configuration class with all the parameters of the
             model. Initializing with a config file does not load the weights associated with the model, only the configuration.
             Check out the :meth:`~transformers.PreTrainedModel.from_pretrained` method to load the model weights.
-        output_attentions (:obj:`bool`, `optional`, defaults to :obj:`None`):
-            If set to ``True``, the attentions tensors of all attention layers are returned. See ``attentions`` under returned tensors for more detail.
-        output_hidden_states (:obj:`bool`, `optional`, defaults to :obj:`None`):
-            If set to ``True``, the hidden states of all layers are returned. See ``hidden_states`` under returned tensors for more detail.
-        return_tuple (:obj:`bool`, `optional`, defaults to :obj:`None`):
-            If set to ``True``, the output of the model will be a plain tuple instead of a ``dataclass``.
 """
 
 
@@ -76,7 +68,8 @@ class XLMRobertaModel(RobertaModel):
 
 
 @add_start_docstrings(
-    """XLM-RoBERTa Model with a `language modeling` head on top. """, XLM_ROBERTA_START_DOCSTRING,
+    """XLM-RoBERTa Model with a `language modeling` head on top. """,
+    XLM_ROBERTA_START_DOCSTRING,
 )
 class XLMRobertaForMaskedLM(RobertaForMaskedLM):
     """

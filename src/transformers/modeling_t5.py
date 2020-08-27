@@ -16,7 +16,6 @@
 
 
 import copy
-import logging
 import math
 import os
 import warnings
@@ -36,9 +35,10 @@ from .file_utils import (
 )
 from .modeling_outputs import BaseModelOutput, BaseModelOutputWithPast, Seq2SeqLMOutput, Seq2SeqModelOutput
 from .modeling_utils import PreTrainedModel, find_pruneable_heads_and_indices, prune_linear_layer
+from .utils import logging
 
 
-logger = logging.getLogger(__name__)
+logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "T5Config"
 _TOKENIZER_FOR_DOC = "T5Tokenizer"
@@ -62,10 +62,10 @@ T5_PRETRAINED_MODEL_ARCHIVE_LIST = [
 # More details: https://medium.com/huggingface/from-tensorflow-to-pytorch-265f40ef2a28
 ####################################################
 def load_tf_weights_in_t5(model, config, tf_checkpoint_path):
-    """ Load tf checkpoints in a pytorch model.
-    """
+    """Load tf checkpoints in a pytorch model."""
     try:
         import re
+
         import numpy as np
         import tensorflow as tf
     except ImportError:
@@ -131,7 +131,9 @@ def load_tf_weights_in_t5(model, config, tf_checkpoint_path):
             logger.info("Transposing numpy weight of shape {} for {}".format(array.shape, name))
             array = np.transpose(array)
         try:
-            assert pointer.shape == array.shape
+            assert (
+                pointer.shape == array.shape
+            ), f"Pointer shape {pointer.shape} and array shape {array.shape} mismatched"
         except AssertionError as e:
             e.args += (pointer.shape, array.shape)
             raise
@@ -153,8 +155,8 @@ def load_tf_weights_in_t5(model, config, tf_checkpoint_path):
 
 class T5LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
-        """ Construct a layernorm module in the T5 style
-            No bias and no substraction of mean.
+        """Construct a layernorm module in the T5 style
+        No bias and no substraction of mean.
         """
         super().__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))
@@ -566,8 +568,8 @@ class T5Block(nn.Module):
 
 
 class T5PreTrainedModel(PreTrainedModel):
-    """ An abstract class to handle weights initialization and
-        a simple interface for downloading and loading pretrained models.
+    """An abstract class to handle weights initialization and
+    a simple interface for downloading and loading pretrained models.
     """
 
     config_class = T5Config
@@ -675,7 +677,7 @@ class T5Stack(T5PreTrainedModel):
         use_cache=None,
         output_attentions=None,
         output_hidden_states=None,
-        return_tuple=None,
+        return_dict=None,
     ):
 
         use_cache = use_cache if use_cache is not None else self.config.use_cache
@@ -683,7 +685,7 @@ class T5Stack(T5PreTrainedModel):
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_tuple = return_tuple if return_tuple is not None else self.config.use_return_tuple
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
@@ -787,7 +789,7 @@ class T5Stack(T5PreTrainedModel):
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
 
-        if return_tuple:
+        if not return_dict:
             return tuple(
                 v
                 for v in [hidden_states, present_key_value_states, all_hidden_states, all_attentions]
@@ -868,8 +870,9 @@ T5_INPUTS_DOCSTRING = r"""
             If set to ``True``, the attentions tensors of all attention layers are returned. See ``attentions`` under returned tensors for more detail.
         output_hidden_states (:obj:`bool`, `optional`, defaults to :obj:`None`):
             If set to ``True``, the hidden states of all layers are returned. See ``hidden_states`` under returned tensors for more detail.
-        return_tuple (:obj:`bool`, `optional`, defaults to :obj:`None`):
-            If set to ``True``, the output of the model will be a plain tuple instead of a ``dataclass``.
+        return_dict (:obj:`bool`, `optional`, defaults to :obj:`None`):
+            If set to ``True``, the model will return a :class:`~transformers.file_utils.ModelOutput` instead of a
+            plain tuple.
 """
 
 
@@ -884,10 +887,12 @@ class T5Model(T5PreTrainedModel):
 
         encoder_config = copy.deepcopy(config)
         encoder_config.use_cache = False
+        encoder_config.is_encoder_decoder = False
         self.encoder = T5Stack(encoder_config, self.shared)
 
         decoder_config = copy.deepcopy(config)
         decoder_config.is_decoder = True
+        decoder_config.is_encoder_decoder = False
         self.decoder = T5Stack(decoder_config, self.shared)
 
         self.init_weights()
@@ -907,9 +912,9 @@ class T5Model(T5PreTrainedModel):
         return self.decoder
 
     def _prune_heads(self, heads_to_prune):
-        """ Prunes heads of the model.
-            heads_to_prune: dict of {layer_num: list of heads to prune in this layer}
-            See base class PreTrainedModel
+        """Prunes heads of the model.
+        heads_to_prune: dict of {layer_num: list of heads to prune in this layer}
+        See base class PreTrainedModel
         """
         for layer, heads in heads_to_prune.items():
             self.encoder.layer[layer].attention.prune_heads(heads)
@@ -930,23 +935,23 @@ class T5Model(T5PreTrainedModel):
         head_mask=None,
         output_attentions=None,
         output_hidden_states=None,
-        return_tuple=None,
+        return_dict=None,
         **kwargs,
     ):
         r"""
-    Returns:
+        Returns:
 
-    Example::
+        Example::
 
-        >>> from transformers import T5Tokenizer, T5Model
+            >>> from transformers import T5Tokenizer, T5Model
 
-        >>> tokenizer = T5Tokenizer.from_pretrained('t5-small')
-        >>> model = T5Model.from_pretrained('t5-small')
+            >>> tokenizer = T5Tokenizer.from_pretrained('t5-small')
+            >>> model = T5Model.from_pretrained('t5-small')
 
-        >>> input_ids = tokenizer.encode("Hello, my dog is cute", return_tensors="pt")  # Batch size 1
-        >>> outputs = model(input_ids=input_ids)
+            >>> input_ids = tokenizer.encode("Hello, my dog is cute", return_tensors="pt")  # Batch size 1
+            >>> outputs = model(input_ids=input_ids)
 
-        >>> last_hidden_states = outputs[0]  # The last hidden-state is the first element of the output tuple
+            >>> last_hidden_states = outputs[0]  # The last hidden-state is the first element of the output tuple
         """
         if "decoder_past_key_value_states" in kwargs:
             warnings.warn(
@@ -957,7 +962,7 @@ class T5Model(T5PreTrainedModel):
         assert kwargs == {}, f"Unexpected keyword arguments: {list(kwargs.keys())}."
 
         use_cache = use_cache if use_cache is not None else self.config.use_cache
-        return_tuple = return_tuple if return_tuple is not None else self.config.use_return_tuple
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         # Encode if needed (training, first prediction pass)
         if encoder_outputs is None:
@@ -968,9 +973,9 @@ class T5Model(T5PreTrainedModel):
                 head_mask=head_mask,
                 output_attentions=output_attentions,
                 output_hidden_states=output_hidden_states,
-                return_tuple=return_tuple,
+                return_dict=return_dict,
             )
-        elif not return_tuple and not isinstance(encoder_outputs, BaseModelOutput):
+        elif return_dict and not isinstance(encoder_outputs, BaseModelOutput):
             encoder_outputs = BaseModelOutput(
                 last_hidden_state=encoder_outputs[0],
                 hidden_states=encoder_outputs[1] if len(encoder_outputs) > 1 else None,
@@ -1005,11 +1010,11 @@ class T5Model(T5PreTrainedModel):
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_tuple=return_tuple,
+            return_dict=return_dict,
         )
 
         past = (encoder_outputs, decoder_outputs[1]) if use_cache is True else None
-        if return_tuple:
+        if not return_dict:
             if past is not None:
                 decoder_outputs = decoder_outputs[:1] + (past,) + decoder_outputs[2:]
             return decoder_outputs + encoder_outputs
@@ -1037,10 +1042,12 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
 
         encoder_config = copy.deepcopy(config)
         encoder_config.use_cache = False
+        encoder_config.is_encoder_decoder = False
         self.encoder = T5Stack(encoder_config, self.shared)
 
         decoder_config = copy.deepcopy(config)
         decoder_config.is_decoder = True
+        decoder_config.is_encoder_decoder = False
         self.decoder = T5Stack(decoder_config, self.shared)
 
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
@@ -1081,34 +1088,35 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         head_mask=None,
         output_attentions=None,
         output_hidden_states=None,
-        return_tuple=None,
+        return_dict=None,
         **kwargs,
     ):
         r"""
-        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`, defaults to :obj:`None`):
-            Labels for computing the sequence classification/regression loss.
-            Indices should be in :obj:`[-100, 0, ..., config.vocab_size - 1]`.
-            All labels set to ``-100`` are ignored (masked), the loss is only
-            computed for labels in ``[0, ..., config.vocab_size]``
-        kwargs (:obj:`Dict[str, any]`, optional, defaults to `{}`):
-            Used to hide legacy arguments that have been deprecated.
+            labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`, defaults to :obj:`None`):
+                Labels for computing the sequence classification/regression loss.
+                Indices should be in :obj:`[-100, 0, ..., config.vocab_size - 1]`.
+                All labels set to ``-100`` are ignored (masked), the loss is only
+                computed for labels in ``[0, ..., config.vocab_size]``
+            kwargs (:obj:`Dict[str, any]`, optional, defaults to `{}`):
+                Used to hide legacy arguments that have been deprecated.
 
-    Returns:
+        Returns:
 
-    Examples::
+        Examples::
 
-        >>> from transformers import T5Tokenizer, T5ForConditionalGeneration
+            >>> from transformers import T5Tokenizer, T5ForConditionalGeneration
 
-        >>> tokenizer = T5Tokenizer.from_pretrained('t5-small')
-        >>> model = T5ForConditionalGeneration.from_pretrained('t5-small')
-        >>> input_ids = tokenizer.encode("Hello, my dog is cute", return_tensors="pt")  # Batch size 1
-        >>> outputs = model(input_ids=input_ids, labels=input_ids)
-        >>> loss, prediction_scores = outputs[:2]
+            >>> tokenizer = T5Tokenizer.from_pretrained('t5-small')
+            >>> model = T5ForConditionalGeneration.from_pretrained('t5-small', return_dict=True)
+            >>> input_ids = tokenizer.encode("Hello, my dog is cute", return_tensors="pt")  # Batch size 1
+            >>> outputs = model(input_ids=input_ids, labels=input_ids)
+            >>> loss = outputs.loss
+            >>> logits = outputs.logits
 
-        >>> tokenizer = T5Tokenizer.from_pretrained('t5-small')
-        >>> model = T5ForConditionalGeneration.from_pretrained('t5-small')
-        >>> input_ids = tokenizer.encode("summarize: Hello, my dog is cute", return_tensors="pt")  # Batch size 1
-        >>> outputs = model.generate(input_ids)
+            >>> tokenizer = T5Tokenizer.from_pretrained('t5-small')
+            >>> model = T5ForConditionalGeneration.from_pretrained('t5-small', return_dict=True)
+            >>> input_ids = tokenizer.encode("summarize: Hello, my dog is cute", return_tensors="pt")  # Batch size 1
+            >>> outputs = model.generate(input_ids)
         """
 
         if "lm_labels" in kwargs:
@@ -1126,7 +1134,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
         assert kwargs == {}, f"Unexpected keyword arguments: {list(kwargs.keys())}."
 
         use_cache = use_cache if use_cache is not None else self.config.use_cache
-        return_tuple = return_tuple if return_tuple is not None else self.config.use_return_tuple
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         # Encode if needed (training, first prediction pass)
         if encoder_outputs is None:
@@ -1138,9 +1146,9 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
                 head_mask=head_mask,
                 output_attentions=output_attentions,
                 output_hidden_states=output_hidden_states,
-                return_tuple=return_tuple,
+                return_dict=return_dict,
             )
-        elif not return_tuple and not isinstance(encoder_outputs, BaseModelOutput):
+        elif return_dict and not isinstance(encoder_outputs, BaseModelOutput):
             encoder_outputs = BaseModelOutput(
                 last_hidden_state=encoder_outputs[0],
                 hidden_states=encoder_outputs[1] if len(encoder_outputs) > 1 else None,
@@ -1174,7 +1182,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
-            return_tuple=return_tuple,
+            return_dict=return_dict,
         )
 
         sequence_output = decoder_outputs[0]
@@ -1190,7 +1198,7 @@ class T5ForConditionalGeneration(T5PreTrainedModel):
             # TODO(thom): Add z_loss https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/layers.py#L666
 
         past = (encoder_outputs, decoder_outputs[1]) if use_cache is True else None
-        if return_tuple:
+        if not return_dict:
             if past is not None:
                 decoder_outputs = decoder_outputs[:1] + (past,) + decoder_outputs[2:]
             output = (lm_logits,) + decoder_outputs[1:] + encoder_outputs
