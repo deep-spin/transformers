@@ -97,6 +97,8 @@ class GPT2Config(PretrainedConfig):
             Argument used when doing sequence summary. Used in for the multiple choice head in
             :class:`~transformers.GPT2DoubleHeadsModel`.
             Add a dropout before the projection and activation
+        sparse_attn (:obj:`bool`, optional, defaults to False):
+            Use sparse self-attention
 
     Example::
 
@@ -136,6 +138,7 @@ class GPT2Config(PretrainedConfig):
         summary_first_dropout=0.1,
         bos_token_id=50256,
         eos_token_id=50256,
+        sparse_attn=False,
         **kwargs
     ):
         super().__init__(bos_token_id=bos_token_id, eos_token_id=eos_token_id, **kwargs)
@@ -158,6 +161,7 @@ class GPT2Config(PretrainedConfig):
         self.summary_activation = summary_activation
         self.summary_first_dropout = summary_first_dropout
         self.summary_proj_to_labels = summary_proj_to_labels
+        self.sparse_attn = sparse_attn
 
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id

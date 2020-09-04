@@ -24,6 +24,7 @@ from typing import List, Optional, Tuple
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss
+from entmax import Entmax15
 
 from .activations import ACT2FN
 from .configuration_gpt2 import GPT2Config
@@ -141,6 +142,7 @@ class Attention(nn.Module):
         self.attn_dropout = nn.Dropout(config.attn_pdrop)
         self.resid_dropout = nn.Dropout(config.resid_pdrop)
         self.pruned_heads = set()
+        self.attn = nn.Softmax(dim=-1)
 
     def prune_heads(self, heads):
         if len(heads) == 0:
@@ -174,7 +176,7 @@ class Attention(nn.Module):
             # Apply the attention mask
             w = w + attention_mask
 
-        w = nn.Softmax(dim=-1)(w)
+        w = self.attn(w)
         w = self.attn_dropout(w)
 
         # Mask heads if we want to
@@ -244,6 +246,66 @@ class Attention(nn.Module):
         return outputs  # a, present, (attentions)
 
 
+class SparseAttention(Attention):
+    """
+    A version of the GPT-2 attention that learns sparsity.
+
+    Keys and queries are mapped to a new embedding space, and attention is only
+    computed on clusters of similar tensors. Clusters are determined by
+    proximity to centroids.
+    """
+
+    def __init__(self, nx, n_ctx, config, scale=False,
+                 is_cross_attention=False):
+        super().__init__(nx, n_ctx, config, scale, is_cross_attention)
+        self.attn = Entmax15(dim=-1)
+
+    def forward(
+        self,
+        hidden_states,
+        layer_past=None,
+        attention_mask=None,
+        head_mask=None,
+        encoder_hidden_states=None,
+        encoder_attention_mask=None,
+        use_cache=False,
+        output_attentions=False,
+    ):
+        if encoder_hidden_states is not None:
+            raise NotImplemented('Sparse Attention not implemented for '
+                                 'encoder-decoder architecture')
+
+        query, key, value = self.c_attn(hidden_states).\
+            split(self.split_size, dim=2)
+
+        query = self.split_heads(query)
+        key = self.split_heads(key, k=True)
+        value = self.split_heads(value)
+        if layer_past is not None:
+            # transpose back cf below
+            past_key = layer_past[0].transpose(-2, -1)
+            past_value = layer_past[1]
+            key = torch.cat((past_key, key), dim=-1)
+            value = torch.cat((past_value, value), dim=-2)
+
+        if use_cache is True:
+            # transpose to have same shapes for stacking
+            present = torch.stack((key.transpose(-2, -1), value))
+        else:
+            present = (None,)
+
+        attn_outputs = self._attn(
+            query, key, value, attention_mask, head_mask, output_attentions)
+        a = attn_outputs[0]
+
+        a = self.merge_heads(a)
+        a = self.c_proj(a)
+        a = self.resid_dropout(a)
+
+        outputs = [a, present] + attn_outputs[1:]
+        return outputs  # a, present, (attentions)
+
+
 class MLP(nn.Module):
     def __init__(self, n_state, config):  # in MLP: n_state=3072 (4 * n_embd)
         super().__init__()
@@ -265,7 +327,10 @@ class Block(nn.Module):
         hidden_size = config.n_embd
         inner_dim = config.n_inner if config.n_inner is not None else 4 * hidden_size
         self.ln_1 = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
-        self.attn = Attention(hidden_size, n_ctx, config, scale)
+        if config.sparse_attn:
+            self.attn = SparseAttention(hidden_size, n_ctx, config, scale)
+        else:
+            self.attn = Attention(hidden_size, n_ctx, config, scale)
         self.ln_2 = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
         if config.add_cross_attention:
             self.crossattention = Attention(hidden_size, n_ctx, config, scale, is_cross_attention=True)
