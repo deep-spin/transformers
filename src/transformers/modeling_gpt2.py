@@ -118,6 +118,22 @@ def load_tf_weights_in_gpt2(model, config, gpt2_checkpoint_path):
     return model
 
 
+class TopKSoftmax(nn.Module):
+    """Perform softmax over the top-K scoring positions, zeroing the rest"""
+    def __init__(self, dim, k):
+        super(TopKSoftmax, self).__init__()
+        self.dim = dim
+        self.k = k
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        sorted_values = x.sort(self.dim)[0]
+        threshold = sorted_values[-self.k]
+        mask = x < threshold.unsqueeze(-1)
+        x[mask] = -float('inf')
+
+        return torch.softmax(x, self.dim)
+
+
 class Attention(nn.Module):
     def __init__(self, nx, n_ctx, config, scale=False, is_cross_attention=False):
         super().__init__()
@@ -258,7 +274,7 @@ class SparseAttention(Attention):
     def __init__(self, nx, n_ctx, config, scale=False,
                  is_cross_attention=False):
         super().__init__(nx, n_ctx, config, scale, is_cross_attention)
-        self.attn = Entmax15(dim=-1)
+        self.attn = TopKSoftmax(dim=-1, k=32)
 
     def forward(
         self,
