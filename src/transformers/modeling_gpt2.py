@@ -274,7 +274,7 @@ class SparseAttention(Attention):
     def __init__(self, nx, n_ctx, config, scale=False,
                  is_cross_attention=False):
         super().__init__(nx, n_ctx, config, scale, is_cross_attention)
-        self.attn = TopKSoftmax(dim=-1, k=32)
+        self.attn = Entmax15(dim=-1, k=n_ctx / 4)
 
     def forward(
         self,
